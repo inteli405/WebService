@@ -16,8 +16,8 @@
   "author": {
     "name": "Jesse Wayne"
   },
-  "bin": {
-    "inteli405": "node ./src/app.js"
+  "scripts": {
+    "start": "node ./src/app.js"
   },
   "engines": {
     "node": ">=5.0.0"

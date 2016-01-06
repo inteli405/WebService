@@ -4,7 +4,7 @@ const db = require('monk')('localhost/inteli405')
 const co = require('co')
 
 const util = require('./util.js')
-const config = require('./config.js')
+const config = require('./config.json')
 
 let door = 'closed'
 let bookdoor = 'closed'
@@ -24,6 +24,10 @@ co(function*(){
 
 const save = co.wrap(function*(sensor, record){
     yield db.get(sensor).insert(record).on('error', util.error)
+})
+
+const load = co.wrap(function*(collection){
+    return yield db.get(collection).find({}).on('error', util.error)
 })
 
 const react = co.wrap(function*(sensor, data){
@@ -48,26 +52,26 @@ const react = co.wrap(function*(sensor, data){
             yield actHumidity(data.timestamp, data.humidity, sh).catch(util.error)
             break
         case 'pressure':
-            let s = false
+            let sp = false
             if(data.pressure > config.threshold.pressure.upper){
-                s = true
+                sp = true
                 console.log('pressure_high', data.pressure)
             }else if(data.pressure < config.threshold.pressure.lower){
-                s = true
+                sp = true
                 console.log('pressure_low', data.pressure)
             }
-            yield actPressure(data.timestamp, data.pressure, s).catch(util.error)
+            yield actPressure(data.timestamp, data.pressure, sp).catch(util.error)
             break
         case 'mq2':
-            let s = false
+            let sm = false
             if(data.mq2 > config.threshold.mq2.upper){
-                s = true
+                sm = true
                 console.log('mq2_high', data.mq2)
             }else if(data.mq2 < config.threshold.mq2.lower){
-                s = true
+                sm = true
                 console.log('mq2_low', data.mq2)
             }
-            yield actMQ2(data.timestamp, data.mq2, s).catch(util.error)
+            yield actMQ2(data.timestamp, data.mq2, sm).catch(util.error)
             break
     }
 })
@@ -79,25 +83,26 @@ const listen = function(e, f){
 module.exports = {
     save: save,
     react: react,
-    listen: listen
+    listen: listen,
+    load: load
 }
 
 const actTemperature = co.wrap(function*(t, v, s){
-    yield db.get('temperature').insert({timestamp:t, value:v, isSpecial:s}).catch(util.error)
+    yield db.get('temperature').insert({timestamp:t, value:v, isSpecial:s}).on('error', util.error)
     listener.temperature.forEach((f)=>f(t,v,s))
 })
 
 const actHumidity = co.wrap(function*(t, v, s){
-    yield db.get('humidity').insert({timestamp:t, value:v, isSpecial:s}).catch(util.error)
+    yield db.get('humidity').insert({timestamp:t, value:v, isSpecial:s}).on('error', util.error)
     listener.humidity.forEach((f)=>f(t,v,s))
 })
 
 const actPressure = co.wrap(function*(t, v, s){
-    yield db.get('pressure').insert({timestamp:t, value:v, isSpecial:s}).catch(util.error)
+    yield db.get('pressure').insert({timestamp:t, value:v, isSpecial:s}).on('error', util.error)
     listener.pressure.forEach((f)=>f(t,v,s))
 })
 
 const actMQ2 = co.wrap(function*(t, v, s){
-    yield db.get('mq2').insert({timestamp:t, value:v, isSpecial:s}).catch(util.error)
+    yield db.get('mq2').insert({timestamp:t, value:v, isSpecial:s}).on('error', util.error)
     listener.mq2.forEach((f)=>f(t,v,s))
 })
