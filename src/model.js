@@ -12,8 +12,9 @@ let doorHandle = null
 let doorExceeding = null
 let bookdoorHandle = null
 let bookdoorExceeding = null
-let User = []
-let Book = []
+let shelfUser = null
+let User = {}
+let Book = {}
 const listener = {
     Temperature: [],
     Humidity: [],
@@ -26,8 +27,10 @@ const listener = {
 }
 
 co(function*(){
-    User = yield db.get('user').find({})
-    Bser = yield db.get('book').find({})
+    (yield db.get('user').find({}).on('error', util.error))
+        .forEach((user) => User[user.card_num] = user)
+    (yield db.get('book').find({}).on('error', util.error))
+        .forEach((book) => Book[book.id] = book)
 })
 
 const save = co.wrap(function*(sensor, record){
@@ -126,7 +129,7 @@ const react = co.wrap(function*(sensor, data){
                     break
             }
         case 'rfiddooruser':
-            if(!User.filter((x)=>x.id==data.id).length){
+            if(!User[data.id]).length){
                 return 403
             }
             switch(door){
@@ -140,10 +143,10 @@ const react = co.wrap(function*(sensor, data){
             }
             break
         case 'rfidshelfuser':
-            if(!User.filter((x)=>x.id==data.id).length){
+            if(!User[data.id]){
                 return 403
             }
-            switch(door){
+            switch(bookdoor){
                 case 'lock':
                     actOpenBookdoor(data.id).catch(util.error)
                     break
@@ -151,6 +154,21 @@ const react = co.wrap(function*(sensor, data){
                 case 'open':
                     //TODO: 刷新timeout
                     break
+            }
+            break
+        case 'rfiddoorbook':
+            actAlert('book_take_out_door', data.id)
+            break
+        case 'rfidshelfbook':
+            let book = Book[data.id]
+            if(!book.length){
+                return 400
+            }
+            book = book[0]
+            if(book.position){
+                actReturnBook(book)
+            }else{
+                actBorrowBook(book)
             }
             break
         case 'debug':
@@ -170,73 +188,79 @@ module.exports = {
     load: load
 }
 
+const publish = (l, d) => {
+    listener[l].forEach((f)=>f(d))
+    listener[l] = []
+}
+
 const actTemperature = co.wrap(function*(t, v, s){
     const data = {timestamp:t, value:v, isSpecial:s}
     yield db.get('Temperature').insert(data).on('error', util.error)
-    listener.Temperature.forEach((f)=>f(data))
-    listener.Temperature = []
+    publish('Temperature', data)
 })
 
 const actHumidity = co.wrap(function*(t, v, s){
     const data = {timestamp:t, value:v, isSpecial:s}
     yield db.get('Humidity').insert(data).on('error', util.error)
-    listener.Humidity.forEach((f)=>f(data))
-    listener.Humidity = []
+    publish('Humidity', data)
 })
 
 const actPressure = co.wrap(function*(t, v, s){
     const data = {timestamp:t, value:v, isSpecial:s}
     yield db.get('Pressure').insert(data).on('error', util.error)
-    listener.Pressure.forEach((f)=>f(data))
-    listener.Pressure = []
+    publish('Pressure', data)
 })
 
 const actMQ2 = co.wrap(function*(t, v, s){
     const data = {timestamp:t, value:v, isSpecial:s}
     yield db.get('MQ2').insert(data).on('error', util.error)
-    listener.MQ2.forEach((f)=>f(data))
-    listener.MQ2 = []
+    publish('MQ2', data)
 })
 
 const actCloseDoor = co.wrap(function*(){
     doorHandle = setTimeout(()=>{
-        db.get('Door_Close').insert({timestamp: +new Date}, errorlogger)
-        listener.relaydoor.forEach((f)=>f({timestamp: +new Date, command:1}))
+        db.get('Door_Close').insert({timestamp: +new Date}).on('error', util.error)
+        publish('relaydoor', {timestamp: +new Date, command:1})
     },config.timeout.closedoor)
 })
 
 const actCloseBookdoor = co.wrap(function*(){
+    shelfUser = null
     bookdoorHandle = setTimeout(()=>{
-        db.get('Bookdoor_Close').insert({timestamp: +new Date}, errorlogger)
-        listener.relayshelf.forEach((f)=>f({timestamp: +new Date, command:1}))
+        db.get('Bookdoor_Close').insert({timestamp: +new Date}).on('error', util.error)
+        publish('relayshelf', {timestamp: +new Date, command:1})
     },config.timeout.closedoor)
 })
 
 const actOpenDoor = co.wrap(function*(user){
-    doorHandle = setTimeout(()=>{
-        db.get('Door_Open').insert({timestamp: +new Date, user: user}, errorlogger)
-        listener.relaydoor.forEach((f)=>f({timestamp: +new Date, command:0}))
-    },config.timeout.closedoor)
+    db.get('Door_Open').insert({timestamp: +new Date, user: user}).on('error', util.error)
+    publish('relaydoor', {timestamp: +new Date, command:0})
 })
 
 const actOpenBookdoor = co.wrap(function*(user){
-    bookdoorHandle = setTimeout(()=>{
-        db.get('Bookdoor_Open').insert({timestamp: +new Date, user: user}, errorlogger)
-        listener.relayshelf.forEach((f)=>f({timestamp: +new Date, command:0}))
-    },config.timeout.closedoor)
+    shelfUser = user
+    db.get('Bookdoor_Open').insert({timestamp: +new Date, user: user}).on('error', util.error)
+    publish('relayshelf', {timestamp: +new Date, command:0})
 })
 
 const actAlert = co.wrap(function*(type, value){
     const data = {timestamp:+new Date, type:type, value:value}
     yield db.get('Alert').insert(data).on('error', util.error)
-    listener.Alert.forEach((f)=>f(data))
-    listener.Alert = []
+    publish('Alert', data)
 })
 
 const actDebug = co.wrap(function*(data){
-    db.get('Debug').insert({timestamp: +new Date, command: data.command}, errorlogger)
-    listener[data.id].forEach((f)=>f({timestamp: +new Date, command:data.command}))
+    db.get('Debug').insert(data.content).on('error', util.error)
+    publish(data.id, data.content)
 })
 
-const errorlogger = (err) => {if(err){console.log(err)}}
+const actReturnBook = co.wrap(function*(book){
+    book.position = null
+    db.get('Book').updateById(book._id, {'$set':{position: null}}).on('error', util.error)
+    db.get('Book_Return').insert({timestamp: +new Date, book: book.id}).on('error', util.error)
+})
 
+const actBorrowBook = co.wrap(function*(book){
+    book.position = shelfUser
+    db.get('Book').updateById(book._id, {'$set':{position: shelfUser}})
+})

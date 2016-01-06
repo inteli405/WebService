@@ -18,6 +18,7 @@
         }
     },
     "timeout": {
-        "closedoor": 2000
+        "closedoor": 2000,
+        "reply": 30000
     }
 }

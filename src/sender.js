@@ -5,6 +5,7 @@ const co = require('co')
 
 const model = require('./model.js')
 const util = require('./util.js')
+const config = require('./config.json')
 
 module.exports = function(req, res, next){
     let race = false
@@ -19,5 +20,5 @@ module.exports = function(req, res, next){
             res.sendStatus(204)
             race = true
         }
-    }, 30000)
+    }, config.timeout.reply)
 }

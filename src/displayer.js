@@ -5,6 +5,7 @@ const co = require('co')
 
 const model = require('./model.js')
 const util = require('./util.js')
+const config = require('./config.json')
 
 module.exports = function(req, res){
     res.set('Access-Control-Allow-Origin', '*')
@@ -27,7 +28,7 @@ module.exports = function(req, res){
                         res.sendStatus(204)
                         race = true
                     }
-                }, 5000)
+                }, config.timeout.reply)
                 break
         }
     }).catch(function(err){
