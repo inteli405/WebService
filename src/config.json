@@ -16,5 +16,8 @@
             "lower": 0,
             "upper": 10
         }
+    },
+    "timeout": {
+        "closedoor": 2000
     }
 }

@@ -6,15 +6,20 @@ const co = require('co')
 const util = require('./util.js')
 const config = require('./config.json')
 
-let door = 'closed'
-let bookdoor = 'closed'
+let door = 'lock'
+let bookdoor = 'lock'
+let doorHandle = null
+let doorExceeding = null
+let bookdoorHandle = null
+let bookdoorExceeding = null
 let User = []
 let Book = []
 const listener = {
     temperature: [],
     humidity: [],
     pressure: [],
-    mq2: []
+    mq2: [],
+    alert: []
 }
 
 co(function*(){
@@ -73,6 +78,28 @@ const react = co.wrap(function*(sensor, data){
             }
             yield actMQ2(data.timestamp, data.mq2, sm).catch(util.error)
             break
+        case 'halldoor':
+            switch(door){
+                case 'lock':
+                    console.log(`hall changed to ${data.hallstatus?'close':'open'} while door locked`)
+                    break
+                case 'close':
+                    if(data.hallstatus){
+                        console.log('hall changed to close but it is closed')
+                    }else{
+                        door = 'open'
+                        clearTimeout(doorHandle)
+                    }
+                    break
+                case 'open':
+                    if(data.hallstatus){
+                        door = 'close'
+                        actCloseDoor().catch(util.error)
+                    }else{
+                        console.log('hall changed to open but it is opened')
+                    }
+                    break
+            }
     }
 })
 
@@ -89,28 +116,42 @@ module.exports = {
 
 const actTemperature = co.wrap(function*(t, v, s){
     const data = {timestamp:t, value:v, isSpecial:s}
-    yield db.get('temperature').insert(data).on('error', util.error)
+    yield db.get('Temperature').insert(data).on('error', util.error)
     listener.temperature.forEach((f)=>f(data))
     listener.temperature = []
 })
 
 const actHumidity = co.wrap(function*(t, v, s){
     const data = {timestamp:t, value:v, isSpecial:s}
-    yield db.get('humidity').insert(data).on('error', util.error)
+    yield db.get('Humidity').insert(data).on('error', util.error)
     listener.humidity.forEach((f)=>f(data))
     listener.temperature = []
 })
 
 const actPressure = co.wrap(function*(t, v, s){
     const data = {timestamp:t, value:v, isSpecial:s}
-    yield db.get('pressure').insert(data).on('error', util.error)
+    yield db.get('Pressure').insert(data).on('error', util.error)
     listener.pressure.forEach((f)=>f(data))
     listener.temperature = []
 })
 
 const actMQ2 = co.wrap(function*(t, v, s){
     const data = {timestamp:t, value:v, isSpecial:s}
-    yield db.get('mq2').insert(data).on('error', util.error)
+    yield db.get('MQ2').insert(data).on('error', util.error)
     listener.mq2.forEach((f)=>f(data))
     listener.temperature = []
+})
+
+const actCloseDoor = co.wrap(function*(){
+    doorHandle = setTimeout(()=>{
+        db.get('Door_Close').insert({timestamp: +new Date}, (err, doc)=>{
+            if(err){
+
+            }
+        })
+    },config.timeout.closedoor)
+})
+
+const actAlert = co.wrap(function*(){
+
 })

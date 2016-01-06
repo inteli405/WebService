@@ -7,6 +7,7 @@ const model = require('./model.js')
 const util = require('./util.js')
 
 module.exports = function(req, res){
+    res.set('Access-Control-Allow-Origin', '*')
     co(function*(){
         switch(req.params.type){
             case 'history':
@@ -14,7 +15,6 @@ module.exports = function(req, res){
                 res.json(data)
                 break
             case 'lateast':
-                console.log('fucked here')
                 let race = false
                 model.listen(req.params.action, (data) => {
                     if(!race){

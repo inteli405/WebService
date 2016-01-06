@@ -14,6 +14,12 @@ rfiddooruser
 rfiddoorbook
 rfidshelfuser
 rfidshelfbook
-
 relaydoor
 relayshelf
+
+actions are:
+Temperature
+Humidity
+Pressure
+MQ2
+Door_Close

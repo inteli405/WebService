@@ -6,6 +6,12 @@ const error = function(err){
     throw err
 }
 
+const cors = function(req, res, next){
+    res.set('Access-Control-Allow-Origin', '*')
+    next(req, res)
+}
+
 module.exports = {
-    error: error
+    error: error,
+    cors: cors
 }
