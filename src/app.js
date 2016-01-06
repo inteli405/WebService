@@ -7,6 +7,6 @@ app.use(logger('dev'))
 
 app.post('/sensordata/:id', require('./reciever.js'))
 app.get('/command/:id', require('./sender.js'))
-app.get('/actionlog/:id/:type', require('./displayer.js'))
+app.get('/statistic/:action/:type', require('./displayer.js'))
 
-app.listen(3000, ()=>console.info('listening on 3000'))
+app.listen(80, ()=>console.info('listening on 80'))

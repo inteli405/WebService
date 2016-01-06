@@ -88,21 +88,29 @@ module.exports = {
 }
 
 const actTemperature = co.wrap(function*(t, v, s){
-    yield db.get('temperature').insert({timestamp:t, value:v, isSpecial:s}).on('error', util.error)
-    listener.temperature.forEach((f)=>f(t,v,s))
+    const data = {timestamp:t, value:v, isSpecial:s}
+    yield db.get('temperature').insert(data).on('error', util.error)
+    listener.temperature.forEach((f)=>f(data))
+    listener.temperature = []
 })
 
 const actHumidity = co.wrap(function*(t, v, s){
-    yield db.get('humidity').insert({timestamp:t, value:v, isSpecial:s}).on('error', util.error)
-    listener.humidity.forEach((f)=>f(t,v,s))
+    const data = {timestamp:t, value:v, isSpecial:s}
+    yield db.get('humidity').insert(data).on('error', util.error)
+    listener.humidity.forEach((f)=>f(data))
+    listener.temperature = []
 })
 
 const actPressure = co.wrap(function*(t, v, s){
-    yield db.get('pressure').insert({timestamp:t, value:v, isSpecial:s}).on('error', util.error)
-    listener.pressure.forEach((f)=>f(t,v,s))
+    const data = {timestamp:t, value:v, isSpecial:s}
+    yield db.get('pressure').insert(data).on('error', util.error)
+    listener.pressure.forEach((f)=>f(data))
+    listener.temperature = []
 })
 
 const actMQ2 = co.wrap(function*(t, v, s){
-    yield db.get('mq2').insert({timestamp:t, value:v, isSpecial:s}).on('error', util.error)
-    listener.mq2.forEach((f)=>f(t,v,s))
+    const data = {timestamp:t, value:v, isSpecial:s}
+    yield db.get('mq2').insert(data).on('error', util.error)
+    listener.mq2.forEach((f)=>f(data))
+    listener.temperature = []
 })

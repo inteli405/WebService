@@ -1,21 +1,37 @@
+'use strict'
+
 const express = require('express')
 const co = require('co')
 
 const model = require('./model.js')
 const util = require('./util.js')
 
-module.exports = function(req, res, next){
+module.exports = function(req, res){
     co(function*(){
-        switch(req.param.type){
+        switch(req.params.type){
             case 'history':
-                const data = yield model.load(req.param.id)
+                const data = yield model.load(req.params.action)
                 res.json(data)
                 break
             case 'lateast':
+                console.log('fucked here')
+                let race = false
+                model.listen(req.params.action, (data) => {
+                    if(!race){
+                        res.json(data)
+                        race = true
+                    }
+                })
+                setTimeout(()=>{
+                    if(!race){
+                        res.sendStatus(204)
+                        race = true
+                    }
+                }, 30000)
                 break
         }
     }).catch(function(err){
         res.status(500).end()
         console.error(err)
-    }).then(next)
+    })
 }
