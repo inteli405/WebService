@@ -1,0 +1,3 @@
+POST /sensordata/:id
+GET /command/:id
+GET /sensordata/=:id
