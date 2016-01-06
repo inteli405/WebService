@@ -15,11 +15,14 @@ let bookdoorExceeding = null
 let User = []
 let Book = []
 const listener = {
-    temperature: [],
-    humidity: [],
-    pressure: [],
-    mq2: [],
-    alert: []
+    Temperature: [],
+    Humidity: [],
+    Pressure: [],
+    MQ2: [],
+    Alert: [],
+
+    relaydoor: [],
+    relayshelf: []
 }
 
 co(function*(){
@@ -100,6 +103,59 @@ const react = co.wrap(function*(sensor, data){
                     }
                     break
             }
+        case 'hallshelf':
+            switch(bookdoor){
+                case 'lock':
+                    console.log(`hall changed to ${data.hallstatus?'close':'open'} while door locked`)
+                    break
+                case 'close':
+                    if(data.hallstatus){
+                        console.log('hall changed to close but it is closed')
+                    }else{
+                        door = 'open'
+                        clearTimeout(bookdoorHandle)
+                    }
+                    break
+                case 'open':
+                    if(data.hallstatus){
+                        door = 'close'
+                        actCloseBookdoor().catch(util.error)
+                    }else{
+                        console.log('hall changed to open but it is opened')
+                    }
+                    break
+            }
+        case 'rfiddooruser':
+            if(!User.filter((x)=>x.id==data.id).length){
+                return 403
+            }
+            switch(door){
+                case 'lock':
+                    actOpenDoor(data.id).catch(util.error)
+                    break
+                case 'close':
+                case 'open':
+                    //TODO: 刷新timeout
+                    break
+            }
+            break
+        case 'rfidshelfuser':
+            if(!User.filter((x)=>x.id==data.id).length){
+                return 403
+            }
+            switch(door){
+                case 'lock':
+                    actOpenBookdoor(data.id).catch(util.error)
+                    break
+                case 'close':
+                case 'open':
+                    //TODO: 刷新timeout
+                    break
+            }
+            break
+        case 'debug':
+            actDebug(data)
+            break
     }
 })
 
@@ -117,41 +173,70 @@ module.exports = {
 const actTemperature = co.wrap(function*(t, v, s){
     const data = {timestamp:t, value:v, isSpecial:s}
     yield db.get('Temperature').insert(data).on('error', util.error)
-    listener.temperature.forEach((f)=>f(data))
-    listener.temperature = []
+    listener.Temperature.forEach((f)=>f(data))
+    listener.Temperature = []
 })
 
 const actHumidity = co.wrap(function*(t, v, s){
     const data = {timestamp:t, value:v, isSpecial:s}
     yield db.get('Humidity').insert(data).on('error', util.error)
-    listener.humidity.forEach((f)=>f(data))
-    listener.temperature = []
+    listener.Humidity.forEach((f)=>f(data))
+    listener.Humidity = []
 })
 
 const actPressure = co.wrap(function*(t, v, s){
     const data = {timestamp:t, value:v, isSpecial:s}
     yield db.get('Pressure').insert(data).on('error', util.error)
-    listener.pressure.forEach((f)=>f(data))
-    listener.temperature = []
+    listener.Pressure.forEach((f)=>f(data))
+    listener.Pressure = []
 })
 
 const actMQ2 = co.wrap(function*(t, v, s){
     const data = {timestamp:t, value:v, isSpecial:s}
     yield db.get('MQ2').insert(data).on('error', util.error)
-    listener.mq2.forEach((f)=>f(data))
-    listener.temperature = []
+    listener.MQ2.forEach((f)=>f(data))
+    listener.MQ2 = []
 })
 
 const actCloseDoor = co.wrap(function*(){
     doorHandle = setTimeout(()=>{
-        db.get('Door_Close').insert({timestamp: +new Date}, (err, doc)=>{
-            if(err){
-
-            }
-        })
+        db.get('Door_Close').insert({timestamp: +new Date}, errorlogger)
+        listener.relaydoor.forEach((f)=>f({timestamp: +new Date, command:1}))
     },config.timeout.closedoor)
 })
 
-const actAlert = co.wrap(function*(){
-
+const actCloseBookdoor = co.wrap(function*(){
+    bookdoorHandle = setTimeout(()=>{
+        db.get('Bookdoor_Close').insert({timestamp: +new Date}, errorlogger)
+        listener.relayshelf.forEach((f)=>f({timestamp: +new Date, command:1}))
+    },config.timeout.closedoor)
 })
+
+const actOpenDoor = co.wrap(function*(user){
+    doorHandle = setTimeout(()=>{
+        db.get('Door_Open').insert({timestamp: +new Date, user: user}, errorlogger)
+        listener.relaydoor.forEach((f)=>f({timestamp: +new Date, command:0}))
+    },config.timeout.closedoor)
+})
+
+const actOpenBookdoor = co.wrap(function*(user){
+    bookdoorHandle = setTimeout(()=>{
+        db.get('Bookdoor_Open').insert({timestamp: +new Date, user: user}, errorlogger)
+        listener.relayshelf.forEach((f)=>f({timestamp: +new Date, command:0}))
+    },config.timeout.closedoor)
+})
+
+const actAlert = co.wrap(function*(type, value){
+    const data = {timestamp:+new Date, type:type, value:value}
+    yield db.get('Alert').insert(data).on('error', util.error)
+    listener.Alert.forEach((f)=>f(data))
+    listener.Alert = []
+})
+
+const actDebug = co.wrap(function*(data){
+    db.get('Debug').insert({timestamp: +new Date, command: data.command}, errorlogger)
+    listener[data.id].forEach((f)=>f({timestamp: +new Date, command:data.command}))
+})
+
+const errorlogger = (err) => {if(err){console.log(err)}}
+

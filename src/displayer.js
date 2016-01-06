@@ -27,7 +27,7 @@ module.exports = function(req, res){
                         res.sendStatus(204)
                         race = true
                     }
-                }, 30000)
+                }, 5000)
                 break
         }
     }).catch(function(err){

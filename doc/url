@@ -1,6 +1,7 @@
 POST /sensordata/:id
 GET /command/:id
 GET /statistic/:action/[history|lateast]
+POST /debug/:id #发往这里的东西会传给继电器
 
 lateast链接不会立即返回，而是等到服务器收到下一条数据之后返回(长轮询)，服务器超时时间30s(即30s后没收到新数据，服务器会返回204，并且内容为空)
 
