@@ -1,4 +1,5 @@
-const express = require('express')
+'use strict'
+
 const co = require('co')
 const parse = require('co-body')
 

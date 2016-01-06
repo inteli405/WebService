@@ -9,9 +9,7 @@ const config = require('./config.json')
 let door = 'lock'
 let bookdoor = 'lock'
 let doorHandle = null
-let doorExceeding = null
 let bookdoorHandle = null
-let bookdoorExceeding = null
 let shelfUser = null
 let User = {}
 let Book = {}
@@ -26,19 +24,28 @@ const listener = {
     relayshelf: []
 }
 
-co(function*(){
+co(function*(){ // init
     (yield db.get('user').find({}).on('error', util.error))
-        .forEach((user) => User[user.card_num] = user)
+        .forEach((user) => User[user.card_num] = user);
     (yield db.get('book').find({}).on('error', util.error))
-        .forEach((book) => Book[book.id] = book)
-})
+        .forEach((book) => Book[book.id] = book);
+    [
+        "Temperature", "Humidity", "Pressure",
+        "MQ2", "Alert", "Debug", "Door_Open",
+        "Door_Close", "Book_Return", "Book_Borrow",
+        "Bookdoor_Open", "Bookdoor_Close"
+    ].forEach((x)=>db.get(x).index('timestamp'))
+}).catch(util.error)
 
 const save = co.wrap(function*(sensor, record){
     yield db.get(sensor).insert(record).on('error', util.error)
 })
 
-const load = co.wrap(function*(collection){
-    return yield db.get(collection).find({}).on('error', util.error)
+const load = co.wrap(function*(collection, limits){
+    return yield db.get(collection).find({},{
+        limit:limits||100,
+        sort:{timestamp: -1}
+    }).on('error', util.error)
 })
 
 const react = co.wrap(function*(sensor, data){
@@ -47,17 +54,17 @@ const react = co.wrap(function*(sensor, data){
             let st = false, sh = false
             if(data.temperature > config.threshold.temperature.upper){
                 st = true
-                console.log('temperature_high', data.temperature)
+                actAlert('temperature_high', data.temperature)
             }else if(data.temperature < config.threshold.temperature.lower){
                 st = true
-                console.log('temperature_low', data.temperature)
+                actAlert('temperature_low', data.temperature)
             }
             if(data.humidity > config.threshold.humidity.upper){
                 sh = true
-                console.log('humidity_high', data.humidity)
+                actAlert('humidity_high', data.humidity)
             }else if(data.humidity < config.threshold.humidity.lower){
                 sh = true
-                console.log('humidity_low', data.humidity)
+                actAlert('humidity_low', data.humidity)
             }
             yield actTemperature(data.timestamp, data.temperature, st).catch(util.error)
             yield actHumidity(data.timestamp, data.humidity, sh).catch(util.error)
@@ -66,10 +73,10 @@ const react = co.wrap(function*(sensor, data){
             let sp = false
             if(data.pressure > config.threshold.pressure.upper){
                 sp = true
-                console.log('pressure_high', data.pressure)
+                actAlert('pressure_high', data.pressure)
             }else if(data.pressure < config.threshold.pressure.lower){
                 sp = true
-                console.log('pressure_low', data.pressure)
+                actAlert('pressure_low', data.pressure)
             }
             yield actPressure(data.timestamp, data.pressure, sp).catch(util.error)
             break
@@ -77,10 +84,10 @@ const react = co.wrap(function*(sensor, data){
             let sm = false
             if(data.mq2 > config.threshold.mq2.upper){
                 sm = true
-                console.log('mq2_high', data.mq2)
+                actAlert('mq2_high', data.mq2)
             }else if(data.mq2 < config.threshold.mq2.lower){
                 sm = true
-                console.log('mq2_low', data.mq2)
+                actAlert('mq2_low', data.mq2)
             }
             yield actMQ2(data.timestamp, data.mq2, sm).catch(util.error)
             break
@@ -129,7 +136,7 @@ const react = co.wrap(function*(sensor, data){
                     break
             }
         case 'rfiddooruser':
-            if(!User[data.id]).length){
+            if(!User[data.id]){
                 return 403
             }
             switch(door){
@@ -244,6 +251,7 @@ const actOpenBookdoor = co.wrap(function*(user){
 })
 
 const actAlert = co.wrap(function*(type, value){
+    console.log(type, value)
     const data = {timestamp:+new Date, type:type, value:value}
     yield db.get('Alert').insert(data).on('error', util.error)
     publish('Alert', data)
@@ -263,4 +271,5 @@ const actReturnBook = co.wrap(function*(book){
 const actBorrowBook = co.wrap(function*(book){
     book.position = shelfUser
     db.get('Book').updateById(book._id, {'$set':{position: shelfUser}})
+    db.get('Book_Borrow').insert({timestamp: +new Date, book: book.id, user: shelfUser}).on('error', util.error)
 })

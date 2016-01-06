@@ -1,4 +1,5 @@
-const express = require('express')
+'use strict'
+
 const co = require('co')
 const parse = require('co-body')
 
@@ -10,7 +11,7 @@ module.exports = function(req, res, next){
         const data = yield parse.json(req)
         data.timestamp = data.timestamp || +new Date
         yield model.save(req.params.id, data).catch(util.error)
-        status = yield model.react(req.params.id, data).catch(util.error)
+        let status = yield model.react(req.params.id, data).catch(util.error)
         res.status(status || 200).end()
     }).catch(function(err){
         res.status(500).end()

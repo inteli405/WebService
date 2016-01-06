@@ -4,7 +4,6 @@ const express = require('express')
 const co = require('co')
 
 const model = require('./model.js')
-const util = require('./util.js')
 const config = require('./config.json')
 
 module.exports = function(req, res){
@@ -12,7 +11,7 @@ module.exports = function(req, res){
     co(function*(){
         switch(req.params.type){
             case 'history':
-                const data = yield model.load(req.params.action)
+                const data = yield model.load(req.params.action, 50)
                 res.json(data)
                 break
             case 'lateast':

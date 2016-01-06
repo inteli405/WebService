@@ -1,13 +1,11 @@
 'use strict'
 
-const express = require('express')
 const co = require('co')
 
 const model = require('./model.js')
-const util = require('./util.js')
 const config = require('./config.json')
 
-module.exports = function(req, res, next){
+module.exports = function(req, res){
     let race = false
     model.listen(req.params.id, (data) => {
         if(!race){
