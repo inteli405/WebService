@@ -2,15 +2,12 @@
 
 const express = require('express')
 const logger = require('morgan')
-const serveStatic = require('serve-static')
 
 const app = express()
 
 const util = require('./util.js')
 
 app.use(logger('dev'))
-
-app.use(serveStatic('www'))
 
 app.post('/sensordata/:id', require('./reciever.js'))
 app.get('/command/:id', require('./sender.js'))
