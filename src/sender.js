@@ -6,6 +6,7 @@ const model = require('./model.js')
 const config = require('./config.json')
 
 module.exports = function(req, res){
+    console.log("GET COMMAND")
     let race = false
     model.listen(req.params.id, (data) => {
         if(!race){

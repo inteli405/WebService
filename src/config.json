@@ -14,12 +14,13 @@
         },
         "mq2": {
             "lower": 0,
-            "upper": 10
+            "upper": 1
         }
     },
     "timeout": {
         "closedoor": 2000,
         "doorexceeding": 1200000,
-        "reply": 30000
+        "reply": 5000,
+        "relayreply": 300000
     }
 }

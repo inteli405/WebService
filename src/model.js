@@ -125,13 +125,13 @@ const react = co.wrap(function*(sensor, data){
                     if(data.hallstatus){
                         console.log('hall changed to close but it is closed')
                     }else{
-                        door = 'open'
+                        bookdoor = 'open'
                         clearTimeout(bookdoorHandle)
                     }
                     break
                 case 'open':
                     if(data.hallstatus){
-                        door = 'close'
+                        bookdoor = 'close'
                         actCloseBookdoor().catch(util.error)
                     }else{
                         console.log('hall changed to open but it is opened')
@@ -168,7 +168,7 @@ const react = co.wrap(function*(sensor, data){
             }
             break
         case 'rfiddoorbook':
-            actAlert('book_take_out_door', data.id)
+            actAlert('book_take_out_door', Book[data.id].bookinfo.name)
             break
         case 'rfidshelfbook':
             let book = Book[data.id]
@@ -261,7 +261,7 @@ const actCloseBookdoor = co.wrap(function*(){
 
 const actOpenDoor = co.wrap(function*(user){
     door = 'close'
-    db.get('Door_Open').insert({timestamp: +new Date, user: user}).on('error', util.error)
+    db.get('Door_Open').insert({timestamp: +new Date, user: User[user]}).on('error', util.error)
     publish('relaydoor', {timestamp: +new Date, command:0})
     doorExceeding = setTimeout(()=>{
         if(door == 'close'){
@@ -277,7 +277,7 @@ const actOpenDoor = co.wrap(function*(user){
 const actOpenBookdoor = co.wrap(function*(user){
     shelfUser = user
     bookdoor = 'close'
-    db.get('Bookdoor_Open').insert({timestamp: +new Date, user: user}).on('error', util.error)
+    db.get('Bookdoor_Open').insert({timestamp: +new Date, user: User[user]}).on('error', util.error)
     publish('relayshelf', {timestamp: +new Date, command:0})
     bookdoorExceeding = setTimeout(()=>{
         if(bookdoor == 'close'){
@@ -300,13 +300,13 @@ const actAlert = co.wrap(function*(type, value){
 const actReturnBook = co.wrap(function*(book){
     book.position = null
     db.get('Book').updateById(book._id, {'$set':{position: null}}).on('error', util.error)
-    db.get('Book_Return').insert({timestamp: +new Date, book: book.id}).on('error', util.error)
+    db.get('Book_Return').insert({timestamp: +new Date, book: book}).on('error', util.error)
 })
 
 const actBorrowBook = co.wrap(function*(book){
     book.position = shelfUser
     db.get('Book').updateById(book._id, {'$set':{position: shelfUser}})
-    db.get('Book_Borrow').insert({timestamp: +new Date, book: book.id, user: shelfUser}).on('error', util.error)
+    db.get('Book_Borrow').insert({timestamp: +new Date, book: book, user: User[shelfUser]}).on('error', util.error)
 })
 
 const actDebug = co.wrap(function*(data){
