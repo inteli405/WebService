@@ -14,6 +14,7 @@ module.exports = function(req, res){
                 const data = yield model.load(req.params.action, 50)
                 res.json(data)
                 break
+            case 'latest':
             case 'lateast':
                 let race = false
                 model.listen(req.params.action, (data) => {
@@ -28,6 +29,9 @@ module.exports = function(req, res){
                         race = true
                     }
                 }, config.timeout.reply)
+                break
+            case 'status':
+                res.json(model.status())
                 break
         }
     }).catch(function(err){

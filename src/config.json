@@ -19,6 +19,7 @@
     },
     "timeout": {
         "closedoor": 2000,
+        "doorexceeding": 1200000,
         "reply": 30000
     }
 }

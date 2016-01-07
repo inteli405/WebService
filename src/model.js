@@ -1,5 +1,5 @@
 'use strict'
-
+// a known bug: 在门已经准备锁上(doorHandle已启动)时门超时计时器到时，此时推开门，门将不会再超时
 const db = require('monk')('localhost/inteli405')
 const co = require('co')
 
@@ -9,7 +9,9 @@ const config = require('./config.json')
 let door = 'lock'
 let bookdoor = 'lock'
 let doorHandle = null
+let doorExceeding = null
 let bookdoorHandle = null
+let bookdoorExceeding = null
 let shelfUser = null
 let User = {}
 let Book = {}
@@ -25,9 +27,9 @@ const listener = {
 }
 
 co(function*(){ // init
-    (yield db.get('user').find({}).on('error', util.error))
+    (yield db.get('User').find({}).on('error', util.error))
         .forEach((user) => User[user.card_num] = user);
-    (yield db.get('book').find({}).on('error', util.error))
+    (yield db.get('Book').find({}).on('error', util.error))
         .forEach((book) => Book[book.id] = book);
     [
         "Temperature", "Humidity", "Pressure",
@@ -113,6 +115,7 @@ const react = co.wrap(function*(sensor, data){
                     }
                     break
             }
+            break
         case 'hallshelf':
             switch(bookdoor){
                 case 'lock':
@@ -135,6 +138,7 @@ const react = co.wrap(function*(sensor, data){
                     }
                     break
             }
+            break
         case 'rfiddooruser':
             if(!User[data.id]){
                 return 403
@@ -145,7 +149,7 @@ const react = co.wrap(function*(sensor, data){
                     break
                 case 'close':
                 case 'open':
-                    //TODO: 刷新timeout
+                    // TODO: 重置超时计时器
                     break
             }
             break
@@ -159,7 +163,7 @@ const react = co.wrap(function*(sensor, data){
                     break
                 case 'close':
                 case 'open':
-                    //TODO: 刷新timeout
+                    // TODO: 重置超时计时器
                     break
             }
             break
@@ -188,11 +192,24 @@ const listen = function(e, f){
     listener[e].push(f)
 }
 
+const status = function(){
+    return {
+        door: door,
+        bookdoor: bookdoor,
+        doorHandle: doorHandle,
+        bookdoorHandle: bookdoorHandle,
+        shelfUser: shelfUser,
+        User: User,
+        Book: Book
+    }
+}
+
 module.exports = {
     save: save,
     react: react,
     listen: listen,
-    load: load
+    load: load,
+    status: status
 }
 
 const publish = (l, d) => {
@@ -228,6 +245,8 @@ const actCloseDoor = co.wrap(function*(){
     doorHandle = setTimeout(()=>{
         db.get('Door_Close').insert({timestamp: +new Date}).on('error', util.error)
         publish('relaydoor', {timestamp: +new Date, command:1})
+        door = 'lock'
+        clearTimeout('doorExceeding')
     },config.timeout.closedoor)
 })
 
@@ -236,18 +255,40 @@ const actCloseBookdoor = co.wrap(function*(){
     bookdoorHandle = setTimeout(()=>{
         db.get('Bookdoor_Close').insert({timestamp: +new Date}).on('error', util.error)
         publish('relayshelf', {timestamp: +new Date, command:1})
+        bookdoor = 'lock'
+        clearTimeout('bookdoorExceeding')
     },config.timeout.closedoor)
 })
 
 const actOpenDoor = co.wrap(function*(user){
+    door = 'close'
     db.get('Door_Open').insert({timestamp: +new Date, user: user}).on('error', util.error)
     publish('relaydoor', {timestamp: +new Date, command:0})
+    doorExceeding = setTimeout(()=>{
+        if(door == 'close'){
+            actCloseDoor()
+        }else if(door == 'open'){
+            actAlert('door_exceeding')
+        }else{
+            console.log('door exceed while locked')
+        }
+    },config.timeout.doorexceeding)
 })
 
 const actOpenBookdoor = co.wrap(function*(user){
     shelfUser = user
+    door = 'close'
     db.get('Bookdoor_Open').insert({timestamp: +new Date, user: user}).on('error', util.error)
     publish('relayshelf', {timestamp: +new Date, command:0})
+    bookdoorExceeding = setTimeout(()=>{
+        if(bookdoor == 'close'){
+            actCloseBookdoor()
+        }else if(bookdoor == 'open'){
+            actAlert('bookdoor_exceeding')
+        }else{
+            console.log('bookdoor exceed while locked')
+        }
+    },config.timeout.doorexceeding)
 })
 
 const actAlert = co.wrap(function*(type, value){
@@ -255,11 +296,6 @@ const actAlert = co.wrap(function*(type, value){
     const data = {timestamp:+new Date, type:type, value:value}
     yield db.get('Alert').insert(data).on('error', util.error)
     publish('Alert', data)
-})
-
-const actDebug = co.wrap(function*(data){
-    db.get('Debug').insert(data.content).on('error', util.error)
-    publish(data.id, data.content)
 })
 
 const actReturnBook = co.wrap(function*(book){
@@ -272,4 +308,9 @@ const actBorrowBook = co.wrap(function*(book){
     book.position = shelfUser
     db.get('Book').updateById(book._id, {'$set':{position: shelfUser}})
     db.get('Book_Borrow').insert({timestamp: +new Date, book: book.id, user: shelfUser}).on('error', util.error)
+})
+
+const actDebug = co.wrap(function*(data){
+    db.get('Debug').insert(data.content).on('error', util.error)
+    publish(data.id, data.content)
 })
