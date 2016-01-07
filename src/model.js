@@ -140,8 +140,6 @@ const react = co.wrap(function*(sensor, data){
             }
             break
         case 'rfiddooruser':
-            console.log(data.id)
-            console.log(User)
             if(!User[data.id]){
                 return 403
             }
@@ -278,7 +276,7 @@ const actOpenDoor = co.wrap(function*(user){
 
 const actOpenBookdoor = co.wrap(function*(user){
     shelfUser = user
-    door = 'close'
+    bookdoor = 'close'
     db.get('Bookdoor_Open').insert({timestamp: +new Date, user: user}).on('error', util.error)
     publish('relayshelf', {timestamp: +new Date, command:0})
     bookdoorExceeding = setTimeout(()=>{
