@@ -1,0 +1,12 @@
+temperature_high 温度
+temperature_low 温度
+humidity_high 湿度
+humidity_low 湿度
+pressure_high 气压
+pressure_low 气压
+mq2_high 烟雾
+mq2_low 烟雾
+
+book_take_out_door 书id
+door_exceeding
+bookdoor_exceeding

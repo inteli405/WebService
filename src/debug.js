@@ -10,7 +10,7 @@ module.exports = function(req, res, next){
     co(function*(){
         const data = yield parse.json(req)
         data.timestamp = data.timestamp || +new Date
-        status = yield model.react('debug', {content: data, id: req.params.id}).catch(util.error)
+        let status = yield model.react('debug', {content: data, id: req.params.id}).catch(util.error)
         res.status(status || 200).end()
     }).catch(function(err){
         res.status(500).end()
